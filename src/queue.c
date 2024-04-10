@@ -19,10 +19,6 @@ void enqueue(struct queue_t *q, struct pcb_t *proc)
         q->proc[q->size] = proc;
         q->size++;
 }
-struct pcb_t *get_proc(void)
-{
-     pthread_mu
-}
 struct pcb_t *dequeue(struct queue_t *q)
 {
         /* TODO: return a pcb whose prioprity is the highest

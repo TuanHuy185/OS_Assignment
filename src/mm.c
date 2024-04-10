@@ -99,12 +99,19 @@ int vmap_page_range(struct pcb_t *caller, // process call
    *      [addr to addr + pgnum*PAGING_PAGESZ
    *      in page table caller->mm->pgd[]
    */
-
+   for(pgit = 0; pgit < pgnum; pgit++){
+    int pgn_off = addr + pgit*PAGING_PAGESZ;
+    pgn = PAGING_PGN(pgn_off);
+    if(fpit){
+      pte_set_fpn(&(caller->mm->pgd[pgn]), fpit->fpn);
+      enlist_pgn_node(&caller->mm->fifo_pgn, pgn);
+    }
+   }
    /* Tracking for later page replacement activities (if needed)
     * Enqueue new usage page */
-   enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit);
+  //  enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit);
 
-
+  ret_rg->rg_end += (pgit-1)*PAGING_PAGESZ;
   return 0;
 }
 
@@ -118,17 +125,56 @@ int vmap_page_range(struct pcb_t *caller, // process call
 int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struct** frm_lst)
 {
   int pgit, fpn;
-  //struct framephy_struct *newfp_str;
+  struct framephy_struct *newfp_str;
 
   for(pgit = 0; pgit < req_pgnum; pgit++)
   {
     if(MEMPHY_get_freefp(caller->mram, &fpn) == 0)
    {
-     
-   } else {  // ERROR CODE of obtaining somes but not enough frames
+    newfp_str = (struct framephy_struct*)malloc(sizeof(struct framephy_struct));
+    newfp_str->fpn = fpn;
+    newfp_str->owner = caller->mm;
+    if(!*frm_lst){
+      *frm_lst = newfp_str;
+    }
+    else{
+      newfp_str->fp_next = *frm_lst;
+      *frm_lst = newfp_str;
+    }
+    newfp_str->fp_next = caller->mram->used_fp_list;
+    caller->mram->used_fp_list = newfp_str;
+   } 
+   else {  // ERROR CODE of obtaining somes but not enough frames
+    int vicfpn, vicpgn, vicpte;
+    int swpfpn = -1;
+    if(find_victim_page(caller->mm, &vicpgn) < 0){
+      return -1;
+    }
+    vicpte = caller->mm->pgd[vicpgn];
+    vicfpn = PAGING_FPN(vicpte);
+    int i = 0;
+    if(MEMPHY_get_freefp(caller->active_mswp, &swpfpn) == 0){
+      __swap_cp_page(caller->mram, vicfpn, caller->active_mswp, swpfpn);
+      struct memphy_struct* mswp = (struct memphy_struct*)caller->mswp;
+      for(int i = 0; i < PAGING_MAX_MMSWP; i++){
+        if(mswp + i == caller->active_mswp){
+          break;
+        }
+      }
+    }
+    else{
+      struct memphy_struct* mswp = (struct memphy_struct*)caller->mswp;
+      for(int i = 0; i < PAGING_MAX_MMSWP; i++){
+        if(MEMPHY_grt_freefp(mswp + 1, &swpfpn) == 0){
+          __swap_cp_page(caller->mram, vicfpn, mswp + i, swpfpn);
+          break;
+        }
+      }
+    }
+    if(swpfpn == -1) return -3000; // out of memory error
+    pte_set_swap(&caller->mm->pgd[vicpgn],i, swpfpn);
    } 
  }
-
   return 0;
 }
 
