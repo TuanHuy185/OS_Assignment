@@ -165,7 +165,7 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
     else{
       struct memphy_struct* mswp = (struct memphy_struct*)caller->mswp;
       for(int i = 0; i < PAGING_MAX_MMSWP; i++){
-        if(MEMPHY_grt_freefp(mswp + 1, &swpfpn) == 0){
+        if(MEMPHY_get_freefp(mswp + 1, &swpfpn) == 0){
           __swap_cp_page(caller->mram, vicfpn, mswp + i, swpfpn);
           break;
         }
