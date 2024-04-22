@@ -191,7 +191,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     int tgtfpn = GETVAL(pte, 0x3fffffe0, 5);
     int tgtfpn_type = GETVAL(pte, 0x1f, 0);
 
-    printf("pte=%d tgtfpn=%d tgtfpn_type=%d\n, pte, tgtfpn, tgtfpn_type");
+    printf("pte=%d tgtfpn=%d tgtfpn_type=%d\n", pte, tgtfpn, tgtfpn_type);
 
     if(find_victim_page(caller->mm, &vicpgn) < 0){
       return -1;
