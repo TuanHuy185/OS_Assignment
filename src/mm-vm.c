@@ -441,7 +441,17 @@ int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int 
   //struct vm_area_struct *vma = caller->mm->mmap;
 
   /* TODO validate the planned memory area is not overlapped */
+  if (vmastart >= vmaend) return -1;
+  struct vm_area_struct *vma = caller->mm->mmap;
+  if (!vma) return -1;
 
+  struct vm_area_struct *cur_area = get_vma_by_num(caller->mm, vmaid);
+  if (!cur_area) return -1;
+  while(vma) 
+  {
+    if (vma != cur_area && OVERLAP(cur_area->vm_start, cur_area->vm_end, vma->vm_start, vma->vm_end)) return -1;
+    vma = vma->vm_next;
+  }
   return 0;
 }
 
@@ -468,6 +478,7 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, int inc_sz)
   /* The obtained vm area (only) 
    * now will be alloc real ram region */
   cur_vma->vm_end += inc_sz;
+  cur_vma->sbrk += inc_sz;
   if (vm_map_ram(caller, area->rg_start, area->rg_end, 
                     old_end, incnumpage , newrg) < 0)
     return -1; /* Map the memory to MEMRAM */
@@ -486,9 +497,16 @@ int find_victim_page(struct mm_struct *mm, int *retpgn)
   struct pgn_t *pg = mm->fifo_pgn;
 
   /* TODO: Implement the theorical mechanism to find the victim page */
-
+  if (!pg) return -1;
+  struct pgn_t *prev = NULL;
+  while(pg->pg_next)
+  {
+    prev = pg;
+    pg = pg->pg_next;
+  }
+  *retpgn = pg->pgn;
+  prev->pg_next = NULL;
   free(pg);
-
   return 0;
 }
 
@@ -544,6 +562,7 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
           rgit->rg_next = NULL;
         }
       }
+      break;
     }
     else
     {
