@@ -42,23 +42,63 @@ void init_scheduler(void)
  *  We implement stateful here using transition technique
  *  State representation   prio = 0 .. MAX_PRIO, curr_slot = 0..(MAX_PRIO - prio)
  */
-struct pcb_t *get_mlq_proc(void)
-{
-	/*TODO: get a process from PRIORITY [ready_queue].
-	 * Remember to use lock to protect the queue.
-	 */
-	pthread_mutex_lock(&queue_lock);
-	struct pcb_t *proc = NULL;
-	for (unsigned long prio = 0; prio < MAX_PRIO; prio++)
-	{
-		if (!empty(&mlq_ready_queue[prio]))
-		{
-			proc = dequeue(&mlq_ready_queue[prio]);
-		}
-	}
+struct pcb_t * get_mlq_proc(void) {
+	int current_prio = 0; 
+	struct pcb_t * proc = NULL;
+	int next_prio = 0;
 
-	pthread_mutex_unlock(&queue_lock);
-	return proc;
+	usleep(5);
+    if (mlq_ready_queue[current_prio].curr_slot > 0) {
+		if(!empty(&mlq_ready_queue[current_prio])){
+			pthread_mutex_lock(&queue_lock);
+        	proc = dequeue(&mlq_ready_queue[current_prio]);
+			mlq_ready_queue[current_prio].curr_slot--;
+			pthread_mutex_unlock(&queue_lock);
+		} else {
+			pthread_mutex_lock(&queue_lock);
+			next_prio = (current_prio + 1) % MAX_PRIO;
+			while (next_prio != current_prio) {
+				if (!empty(&mlq_ready_queue[next_prio])) {
+					proc = dequeue(&mlq_ready_queue[next_prio]);
+					mlq_ready_queue[next_prio].curr_slot--;
+					break;
+				} else {
+					next_prio = (next_prio + 1) % MAX_PRIO;
+				}
+			}
+			pthread_mutex_unlock(&queue_lock);
+			if (!proc && !empty(&mlq_ready_queue[current_prio])) {
+				pthread_mutex_lock(&queue_lock);
+				proc = dequeue(&mlq_ready_queue[current_prio]);
+				mlq_ready_queue[current_prio].curr_slot--;
+				pthread_mutex_unlock(&queue_lock);
+			}
+		}
+    } else {
+        mlq_ready_queue[current_prio].curr_slot = MAX_PRIO - current_prio;
+
+        next_prio = (current_prio + 1) % MAX_PRIO;
+        while (next_prio != current_prio) {
+            if (!empty(&mlq_ready_queue[next_prio])) {
+                pthread_mutex_lock(&queue_lock);
+                proc = dequeue(&mlq_ready_queue[next_prio]);
+                mlq_ready_queue[next_prio].curr_slot--;
+                pthread_mutex_unlock(&queue_lock);
+                current_prio = next_prio; 
+                break;
+            } else {
+                next_prio = (next_prio + 1) % MAX_PRIO;
+            }
+        }
+
+        if (!proc && !empty(&mlq_ready_queue[current_prio])) {
+			pthread_mutex_lock(&queue_lock);
+            proc = dequeue(&mlq_ready_queue[current_prio]);
+            mlq_ready_queue[current_prio].curr_slot--;
+			pthread_mutex_unlock(&queue_lock);
+        }
+    }
+	return proc;	
 }
 
 void put_mlq_proc(struct pcb_t *proc)
