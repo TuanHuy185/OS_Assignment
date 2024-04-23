@@ -6,6 +6,9 @@
 
 #include "mm.h"
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
 
 /*
  *  MEMPHY_mv_csr - move MEMPHY cursor
