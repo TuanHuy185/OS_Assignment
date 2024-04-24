@@ -4,6 +4,7 @@
 #include "sched.h"
 #include "loader.h"
 #include "mm.h"
+#include <semaphore.h>
 
 #include <pthread.h>
 #include <stdio.h>
@@ -54,10 +55,12 @@ static void * cpu_routine(void * args) {
 	int time_left = 0;
 	struct pcb_t * proc = NULL;
 	while (1) {
+		usleep(3);
 		/* Check the status of current process */
 		if (proc == NULL) {
 			/* No process is running, the we load new process from
 		 	* ready queue */
+		 	usleep(3);
 			proc = get_proc();
 			if (proc == NULL) {
                            next_slot(timer_id);
@@ -68,6 +71,7 @@ static void * cpu_routine(void * args) {
 			printf("\tCPU %d: Processed %2d has finished\n",
 				id ,proc->pid);
 			free(proc);
+			usleep(3);
 			proc = get_proc();
 			time_left = 0;
 		}else if (time_left == 0) {
@@ -75,6 +79,7 @@ static void * cpu_routine(void * args) {
 			printf("\tCPU %d: Put process %2d to run queue\n",
 				id, proc->pid);
 			put_proc(proc);
+			usleep(20);
 			proc = get_proc();
 		}
 		
@@ -89,6 +94,7 @@ static void * cpu_routine(void * args) {
 			next_slot(timer_id);
 			continue;
 		}else if (time_left == 0) {
+			usleep(5);
 			printf("\tCPU %d: Dispatched process %2d\n",
 				id, proc->pid);
 			time_left = time_slot;
@@ -128,6 +134,7 @@ static void * ld_routine(void * args) {
 		proc->mram = mram;
 		proc->mswp = mswp;
 		proc->active_mswp = active_mswp;
+		sem_init(&proc->mm->memlock, 0, 1);
 #endif
 		printf("\tLoaded a process at %s, PID: %d PRIO: %ld\n",
 			ld_processes.path[i], proc->pid, ld_processes.prio[i]);
@@ -254,7 +261,7 @@ int main(int argc, char * argv[]) {
 
 	/* Create MEM RAM */
 	init_memphy(&mram, memramsz, rdmflag);
-
+		sem_init(&mram.memphylock, 0, 1);
 	/* Create all MEM SWAP */ 
 	int sit;
 	for(sit = 0; sit < PAGING_MAX_MMSWP; sit++)
