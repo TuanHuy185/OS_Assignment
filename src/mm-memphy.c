@@ -164,7 +164,7 @@ int MEMPHY_dump(struct memphy_struct * mp)
      *     for tracing the memory content
      */
     printf("\n");
-    for (int address = 0; addr < mp->maxsz; address++)
+    for (int address = 0; address < mp->maxsz; address++)
     {
       if (mp->storage[address] != 0) printf("The content at address %d is : %d\n", address, mp->storage[address]);
     }
