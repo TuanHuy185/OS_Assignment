@@ -163,19 +163,17 @@ int MEMPHY_dump(struct memphy_struct * mp)
     /*TODO dump memphy contnt mp->storage 
      *     for tracing the memory content
      */
-    char result[100];
-    strcpy(result, "Memory content-[pos, content]: ");
-    char temp[100];
-    if(mp && mp->storage){
-      for(int i = 0; i < mp-> maxsz; i++){
-         if(mp->storage[i] != (char)0){
-            sprintf(temp, "[%d, %d]", i, mp->storage[i]);
-            strcat(result, temp);
-         }
+    printf("================MEMORY TEST=================\n");
+    for (int addr = 0; addr < mp->maxsz; addr++)
+    {
+      if (mp->storage[addr] != 0)
+      {
+         
+         printf("Content at address %d : %d\n", addr, mp->storage[addr]);
       }
-      strcat(result, "\n\0");
     }
-    printf("%s", result);
+    printf("============================================\n");
+
     return 0;
 }
 
