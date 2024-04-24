@@ -92,7 +92,7 @@ int vmap_page_range(struct pcb_t *caller, // process call
   
   ret_rg->rg_end = ret_rg->rg_start = addr; // at least the very first space is usable
 
-  fpit= frames;
+  fpit = frames;
   /* TODO map range of frame to address space 
    *      [addr to addr + pgnum*PAGING_PAGESZ
    *      in page table caller->mm->pgd[]
@@ -106,21 +106,17 @@ int vmap_page_range(struct pcb_t *caller, // process call
     printf("Free frame is: %d\n", fpn);
     pte_set_swap(pte, 0, 0);
     pte_set_fpn(pte, fpn);
-
     caller->mm->pgd[pgn + pgit] = *pte;
     printf("Mapped region [%ld->",ret_rg->rg_end);
     ret_rg->rg_end += PAGING_PAGESZ;
     printf("%ld] to frame %d with address %08x\n",ret_rg->rg_end,fpn,*pte);
     fpit = fpit->fp_next;
-    
     enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit);  
   }
   free(pte);
   caller->mram->used_fp_list = frames;
    /* Tracking for later page replacement activities (if needed)
     * Enqueue new usage page */
-  
-
   return 0;
 }
 
@@ -146,12 +142,10 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
       *frm_lst = newfp_str;
    } 
    else {  // ERROR CODE of obtaining somes but not enough frames
-        
         printf("Not enough frames \n");
         return -3000;
    } 
  }
-
   return 0;
 }
 

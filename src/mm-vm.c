@@ -106,7 +106,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   
   int inc_sz = PAGING_PAGE_ALIGNSZ(size);
   //int inc_limit_ret
-  int old_sbrk =cur_vma->sbrk;
+  int old_sbrk = cur_vma->sbrk;
 
   
   /* TODO INCREASE THE LIMIT
@@ -118,29 +118,26 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
     sem_post(&caller->mm->memlock);
     return -1;
   }
-  printf("Increase limit done\n");
+  printf("Increase limit finished\n");
   /*Successful increase limit */
   caller->mm->symrgtbl[rgid].rg_start = old_sbrk;
   caller->mm->symrgtbl[rgid].rg_end = old_sbrk + size;
   
   //Update the freerg list
-  if(cur_vma->vm_freerg_list->rg_start>=cur_vma->vm_freerg_list->rg_end){
-    cur_vma->vm_freerg_list->rg_start=old_sbrk + size;
-    cur_vma->vm_freerg_list->rg_end=cur_vma->sbrk;
+  if(cur_vma->vm_freerg_list->rg_start >= cur_vma->vm_freerg_list->rg_end){
+    cur_vma->vm_freerg_list->rg_start = old_sbrk + size;
+    cur_vma->vm_freerg_list->rg_end = cur_vma->sbrk;
     sem_post(&caller->mm->memlock);
   }
   else{
     //Traverse to the end
-   
     struct vm_rg_struct rg_elmt_pointer;
-    rg_elmt_pointer.rg_start=old_sbrk + size;
-    rg_elmt_pointer.rg_end=cur_vma->sbrk;
-    
-    enlist_vm_freerg_list(caller->mm,rg_elmt_pointer);
+    rg_elmt_pointer.rg_start = old_sbrk + size;
+    rg_elmt_pointer.rg_end = cur_vma->sbrk;
+    enlist_vm_freerg_list(caller->mm, rg_elmt_pointer);
   }
   sem_post(&caller->mm->memlock);
   *alloc_addr = old_sbrk;
-  
   return 0;
 }
 
@@ -168,7 +165,7 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
   /*enlist the obsoleted memory region */
   sem_post(&caller->mm->memlock);
   enlist_vm_freerg_list(caller->mm, rgnode);
-  printf("Free done\n");
+  printf("Free finished\n");
   return 0;
 }
 
@@ -228,7 +225,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
 
     /* Do swap frame from MEMRAM to MEMSWP and vice versa*/
     /* Copy victim frame to swap */
-    printf("Swapping\n");
+    printf("Start swapping\n");
     sem_wait(&caller->mram->memphylock);
     __swap_cp_page(caller->mram, vicfpn, caller->active_mswp, swpfpn);
     
@@ -247,7 +244,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     sem_post(&caller->mram->memphylock);
   }
   *fpn = PAGING_FPN(pte);
-  printf("Swap done\n");
+  printf("Swap finished\n");
   return 0;
 }
 
@@ -444,11 +441,9 @@ int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int 
   struct vm_area_struct *vma = caller->mm->mmap;
 
   /* TODO validate the planned memory area is not overlapped */
-  while(vma != NULL){
-    if(vma->vm_start <= vmastart && vmastart < vma->vm_end)
-    return -1;
-    if(vma->vm_start < vmaend && vmaend <= vma->vm_end)
-    return -1;
+  while(vma){
+    if(vma->vm_start <= vmastart && vmastart < vma->vm_end) return -1;
+    if(vma->vm_start < vmaend && vmaend <= vma->vm_end) return -1;
     vma = vma->vm_next;
   }
   return 0;
@@ -483,11 +478,11 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, int inc_sz)
    * now will be alloc real ram region */
   
   sem_wait(&caller->mram->memphylock);
-  if (vm_map_ram(caller, area->rg_start, area->rg_end, 
-                    old_end, incnumpage , newrg) < 0){
-                      sem_post(&caller->mram->memphylock);
-                       return -1;
-                    }
+  if (vm_map_ram(caller, area->rg_start, area->rg_end, old_end, incnumpage , newrg) < 0)
+  {
+    sem_post(&caller->mram->memphylock);
+    return -1;
+  }
   cur_vma->vm_end += inc_sz;
     /* Map the memory to MEMRAM */
   sem_post(&caller->mram->memphylock);
@@ -505,30 +500,23 @@ int find_victim_page(struct mm_struct *mm, int *retpgn)
   struct pgn_t *pg = mm->fifo_pgn;
   
   /* TODO: Implement the theorical mechanism to find the victim page */
-    if (pg == NULL)
+    if (!pg) return -1;
+    
+    if(!pg->pg_next)
     {
-      
-        return -1;
-    }
-    if(pg->pg_next == NULL)
-    {
-      
-        *retpgn = pg->pgn;
-        mm->fifo_pgn = NULL;
-        free(pg);
+      *retpgn = pg->pgn;
+      mm->fifo_pgn = NULL;
+      free(pg);
     }
     else
     {
-     
-        while(pg->pg_next->pg_next != NULL)
+        while(pg->pg_next->pg_next)
         { 
         pg = pg->pg_next;
         }
-        
         *retpgn = pg->pg_next->pgn;
         free(pg->pg_next);
         pg->pg_next = NULL;
-
     }
     return 0;
 }
