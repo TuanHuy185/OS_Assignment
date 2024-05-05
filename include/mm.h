@@ -25,6 +25,7 @@
 /* PTE BIT PRESENT */
 #define PAGING_PTE_SET_PRESENT(pte) (pte=pte|PAGING_PTE_PRESENT_MASK)
 #define PAGING_PAGE_PRESENT(pte) (pte&PAGING_PTE_PRESENT_MASK)
+#define PAGING_PAGE_DIRTY(pte) (pte&PAGING_PTE_DIRTY_MASK)
 
 /* USRNUM */
 #define PAGING_PTE_USRNUM_LOBIT 15
@@ -72,7 +73,7 @@
 /* Other masks */
 #define PAGING_OFFST_MASK  GENMASK(PAGING_ADDR_OFFST_HIBIT,PAGING_ADDR_OFFST_LOBIT)
 #define PAGING_PGN_MASK  GENMASK(PAGING_ADDR_PGN_HIBIT,PAGING_ADDR_PGN_LOBIT)
-#define PAGING_FPN_MASK  GENMASK(PAGING_ADDR_FPN_HIBIT,PAGING_ADDR_FPN_LOBIT)
+#define PAGING_FPN_MASK  GENMASK(PAGING_PTE_FPN_HIBIT,PAGING_PTE_FPN_LOBIT)
 #define PAGING_SWP_MASK  GENMASK(PAGING_SWP_HIBIT,PAGING_SWP_LOBIT)
 
 /* Extract OFFSET */
@@ -81,11 +82,11 @@
 /* Extract Page Number*/
 #define PAGING_PGN(x)  GETVAL(x,PAGING_PGN_MASK,PAGING_ADDR_PGN_LOBIT)
 /* Extract FramePHY Number*/
-#define PAGING_FPN(x)  GETVAL(x,PAGING_FPN_MASK,PAGING_ADDR_FPN_LOBIT)
+#define PAGING_FPN(x)  GETVAL(x,PAGING_FPN_MASK,PAGING_PTE_FPN_LOBIT)
 /* Extract SWAPFPN */
 #define PAGING_PGN(x)  GETVAL(x,PAGING_PGN_MASK,PAGING_ADDR_PGN_LOBIT)
 /* Extract SWAPTYPE */
-#define PAGING_FPN(x)  GETVAL(x,PAGING_FPN_MASK,PAGING_ADDR_FPN_LOBIT)
+#define PAGING_FPN(x)  GETVAL(x,PAGING_FPN_MASK,PAGING_PTE_FPN_LOBIT)
 
 /* Memory range operator */
 #define INCLUDE(x1,x2,y1,y2) (((y1-x1)*(x2-y2)>=0)?1:0)
@@ -128,6 +129,16 @@ int TLBMEMPHY_read(struct memphy_struct * mp, int addr, BYTE *value);
 int TLBMEMPHY_write(struct memphy_struct * mp, int addr, BYTE data);
 int TLBMEMPHY_dump(struct memphy_struct * mp);
 
+#ifdef CPU_TLB
+int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, int* value);
+int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, int value);
+int tlb_clear_bit_valid(struct memphy_struct * mp, int pid, int pgnum);
+int tlb_flush_entry(struct memphy_struct *mp, int pid, int pgnum);
+void print_TLB_performance();
+#endif
+
+
+
 /* VM prototypes */
 int pgalloc(struct pcb_t *proc, uint32_t size, uint32_t reg_index);
 int pgfree_data(struct pcb_t *proc, uint32_t reg_index);
@@ -142,6 +153,7 @@ int pgwrite(
 		uint32_t destination, // Index of destination register
 		uint32_t offset);
 /* Local VM prototypes */
+int check_if_in_freerg_list(struct pcb_t *caller, int vmaid, struct vm_rg_struct *currg);
 struct vm_rg_struct * get_symrg_byid(struct mm_struct* mm, int rgid);
 int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int vmaend);
 int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_struct *newrg);

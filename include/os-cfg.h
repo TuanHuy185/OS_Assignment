@@ -6,8 +6,10 @@
 
 //#define CPU_TLB
 //#define CPUTLB_FIXED_TLBSZ
-//#define MM_PAGING
-#define MM_FIXED_MEMSZ
+//#define TLB_FULLY_ASSOCIATE
+//#define TLB_DIRECT_MAP
+//#define MM_PAGING //MMU
+#define MM_FIXED_MEMSZ //sched
 #define VMDBG 1
 #define MMDBG 1
 #define IODUMP 1

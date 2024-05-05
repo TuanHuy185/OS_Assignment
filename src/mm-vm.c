@@ -148,6 +148,26 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
  *@size: allocated size 
  *
  */
+ int check_if_in_freerg_list(struct pcb_t *caller, int vmaid, struct vm_rg_struct *currg) {
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
+
+  struct vm_rg_struct *rgit = cur_vma->vm_freerg_list;
+
+  if (rgit == NULL)
+    return 1;
+
+  /* Traverse on list of free vm region to find a fit space */
+  while (rgit != NULL)
+  {
+    if (rgit->rg_start == currg->rg_start && rgit->rg_end == currg->rg_end)
+    {
+      return -1;
+    }
+    rgit = rgit->rg_next;	// Traverse next rg
+  }
+  return 1;
+}
+
 int __free(struct pcb_t *caller, int vmaid, int rgid)
 {
   sem_wait(&caller->mm->memlock);
