@@ -3,6 +3,8 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+
 static struct queue_t ready_queue;
 static struct queue_t run_queue;
 static pthread_mutex_t queue_lock;

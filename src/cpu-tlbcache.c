@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <string.h>
 
 /* TLB version 2
 Each entries have 64 bits

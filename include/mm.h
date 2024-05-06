@@ -134,7 +134,7 @@ int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, int* value);
 int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, int value);
 int tlb_clear_bit_valid(struct memphy_struct * mp, int pid, int pgnum);
 int tlb_flush_entry(struct memphy_struct *mp, int pid, int pgnum);
-void print_TLB_performance();
+void result_TLB();
 #endif
 
 
