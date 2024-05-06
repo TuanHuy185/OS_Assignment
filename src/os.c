@@ -313,7 +313,7 @@ int main(int argc, char * argv[]) {
 
 	/* Stop timer */
 	stop_timer();
-    print_TLB_performance();
+    result_TLB();
 	return 0;
 
 }

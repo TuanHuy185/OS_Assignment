@@ -17,7 +17,7 @@
 #include <stdio.h>
 
 #ifdef CPU_TLB
-static int count_hit = 0 , count_miss = 0;
+static int HIT = 0 , MISS = 0;
 
 int tlb_change_all_page_tables_of(struct pcb_t *proc,  struct memphy_struct * mp) 
 {
@@ -112,13 +112,13 @@ int tlbread(struct pcb_t * proc, uint32_t source,
 
 #ifdef IODUMP
   if (frmnum >= 0){
-    count_hit++;
-    printf("TLB hit at read region=%d offset=%d\n", 
+    HIT++;
+    printf("TLB HIT at read region=%d offset=%d\n", 
 	         source, offset);
   }
   else {
-    count_miss++;
-    printf("TLB miss at read region=%d offset=%d\n", 
+    MISS++;
+    printf("TLB MISS at read region=%d offset=%d\n", 
 	         source, offset);
   }
 #ifdef PAGETBL_DUMP
@@ -129,9 +129,7 @@ int tlbread(struct pcb_t * proc, uint32_t source,
 
   if (frmnum >= 0) {
     int phyaddr = (frmnum << PAGING_ADDR_FPN_LOBIT) + offset;
-
     MEMPHY_read(proc->mram, phyaddr, &data);
-
     destination = (uint32_t) data;
     return 0;
   }
@@ -151,10 +149,8 @@ int tlbread(struct pcb_t * proc, uint32_t source,
           return -1;
       }
   }
-
   TLBMEMPHY_dump(proc->tlb);
   print_pgtbl(proc, 0, -1);
-
 
   return val; 
 } 
@@ -185,20 +181,18 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
       return -1;
   }
   int addr = currg->rg_start + offset;
-
   int pgnum = PAGING_PGN(addr);
-
   tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum);
 
 #ifdef IODUMP
   if (frmnum >= 0) {
-    count_hit++;
-    printf("TLB hit at write region=%d offset=%d value=%d\n",
+    HIT++;
+    printf("TLB HIT at write region=%d offset=%d value=%d\n",
 	          destination, offset, data);
   }
 	else {
-    count_miss++;
-    printf("TLB miss at write region=%d offset=%d value=%d\n",
+    MISS++;
+    printf("TLB MISS at write region=%d offset=%d value=%d\n",
             destination, offset, data);
   }
 #ifdef PAGETBL_DUMP
@@ -209,9 +203,7 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
 
   if (frmnum >= 0) {
     int phyaddr = (frmnum << PAGING_ADDR_FPN_LOBIT) + offset;
-
     MEMPHY_write(proc->mram,phyaddr, val);
-
     return 0;
   }
   val = __write(proc, 0, destination, offset, data);
@@ -231,15 +223,14 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
 
   TLBMEMPHY_dump(proc->tlb);
   print_pgtbl(proc, 0, -1);
-  
   return val;
 }
 
 
-void print_TLB_performance() {
-  printf("===================TLB-Performance===================\n");
-  printf("TLB hit: %d times\n", count_hit);
-  printf("TLB miss: %d times\n", count_miss);
-  printf("TLB hit ratio: %d%%\n", count_hit * 100 / (count_hit + count_miss));
+void result_TLB() {
+  printf("RESULT OF TLB: \n");
+  printf("TLB HIT: %d times\n", HIT);
+  printf("TLB MISS: %d times\n", MISS);
+  printf("TLB HIT ratio: %d%%\n", HIT * 100 / (HIT + MISS));
 }
 #endif
