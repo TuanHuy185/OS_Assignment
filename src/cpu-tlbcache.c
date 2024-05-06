@@ -71,42 +71,47 @@ static int NUM_OF_ENTRIES_TLB;
 #define init_tlbcache(mp,sz,...) init_memphy(mp, sz, (1, ##__VA_ARGS__))
 static pthread_mutex_t tlb_lock;
 
-int tlb_clear_bit_valid(struct memphy_struct * mp, int pid, int pgnum){
-   pthread_mutex_lock(&tlb_lock);
+int tlb_clear_bit_valid(struct memphy_struct *mp, int pid, int pgnum) {
+    int result = -1; // Assume failure by default
 
-   #ifdef TLB_FULLY_ASSOCIATE
-   for (int i = 0; i < NUM_OF_ENTRIES_TLB; i++) {
-      uint32_t *tag = (uint32_t*)(mp->storage + i*8);
+    pthread_mutex_lock(&tlb_lock);
 
-      int pid_TLB = TLB_TAG_PID(*tag);
-      int pgnum_TLB = TLB_TAG_PGN(*tag);
+#ifdef TLB_FULLY_ASSOCIATE
+    for (int i = 0; i < NUM_OF_ENTRIES_TLB; i++) {
+        uint32_t *tag = (uint32_t *)(mp->storage + i * 8);
 
-      if (pid == pid_TLB && pgnum == pgnum_TLB) {
-         CLRBIT(*tag, TLB_TAG_VALID_MASK);
-         break;
-      }
-   }
-   #endif
-   
-   #ifdef TLB_DIRECT_MAP
-   int i = pgnum % NUM_OF_ENTRIES_TLB;
-   uint32_t *tag = (uint32_t*)(mp->storage + i*8);
+        int pid_TLB = TLB_TAG_PID(*tag);
+        int pgnum_TLB = TLB_TAG_PGN(*tag);
 
-   int pid_TLB = TLB_TAG_PID(*tag);
-   int pgnum_TLB = TLB_TAG_PGN(*tag);
+        if (pid == pid_TLB && pgnum == pgnum_TLB) {
+            CLRBIT(*tag, TLB_TAG_VALID_MASK);
+            result = 0; // Success
+            break;
+        }
+    }
+#endif
 
-   if (pid == pid_TLB && pgnum == pgnum_TLB) {
-      CLRBIT(*tag, TLB_TAG_VALID_MASK);
-   }
-   #endif
+#ifdef TLB_DIRECT_MAP
+    int i = pgnum % NUM_OF_ENTRIES_TLB;
+    uint32_t *tag = (uint32_t *)(mp->storage + i * 8);
 
-   pthread_mutex_unlock(&tlb_lock);
-  return 0;
+    int pid_TLB = TLB_TAG_PID(*tag);
+    int pgnum_TLB = TLB_TAG_PGN(*tag);
+
+    if (pid == pid_TLB && pgnum == pgnum_TLB) {
+        CLRBIT(*tag, TLB_TAG_VALID_MASK);
+        result = 0; // Success
+    }
+#endif
+
+    pthread_mutex_unlock(&tlb_lock);
+    return result;
 }
+
 
 int tlb_flush_entry(struct memphy_struct *mp, int pid, int pgnum) {
    pthread_mutex_lock(&tlb_lock);
-   #ifdef TLB_FULLY_ASSOCIATE
+#ifdef TLB_FULLY_ASSOCIATE
    for (int i = 0; i < NUM_OF_ENTRIES_TLB; i++) {
       uint32_t *tag = (uint32_t*)(mp->storage + i*8);
       uint32_t *frmnum = (uint32_t*)(mp->storage + i*8 + 4);
@@ -123,7 +128,7 @@ int tlb_flush_entry(struct memphy_struct *mp, int pid, int pgnum) {
          break;
       }
   }
-  #endif
+#endif
   pthread_mutex_unlock(&tlb_lock);
   return 0;
 }
@@ -204,10 +209,10 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, int value)
    int all_used = 1;
 
    for (int i = 0; i < NUM_OF_ENTRIES_TLB; i++) {
-      uint32_t *tag = (uint32_t*)(mp->storage + i*8);
-      uint32_t *frmnum = (uint32_t*)(mp->storage + i*8 + 4);
+      uint32_t *tag = (uint32_t *)(mp->storage + i * 8);
+      uint32_t *frmnum = (uint32_t *)(mp->storage + i * 8 + 4);
 
-      int valid =  TLB_TAG_VALID(*tag);
+      int valid = TLB_TAG_VALID(*tag);
 
       if (!valid) {
          SETBIT(*tag, TLB_TAG_VALID_MASK);
@@ -219,40 +224,43 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, int value)
          break;
       }
    }
+
    // check LRU
    if (all_used) {
+      int lru_index = 0;
+      uint32_t lru_tag = UINT32_MAX;
+
       for (int i = 0; i < NUM_OF_ENTRIES_TLB; i++) {
-         uint32_t *tag = (uint32_t*)(mp->storage + i*8);
-         uint32_t *frmnum = (uint32_t*)(mp->storage + i*8 + 4);
+         uint32_t *tag = (uint32_t *)(mp->storage + i * 8);
+         uint32_t *frmnum = (uint32_t *)(mp->storage + i * 8 + 4);
 
          int used = TLB_TAG_USED(*tag);
 
          if (!used) {
-            SETBIT(*tag, TLB_TAG_VALID_MASK); 
-            SETBIT(*tag, TLB_TAG_USED_MASK);
-            SETVAL(*tag, pid, TLB_TAG_PID_MASK, TLB_TAG_PID_LOBIT);
-            SETVAL(*tag, pgnum, TLB_TAG_PGN_MASK, TLB_TAG_PGN_LOBIT);
-            *frmnum = value;
-            break;
+               SETBIT(*tag, TLB_TAG_VALID_MASK);
+               SETBIT(*tag, TLB_TAG_USED_MASK);
+               SETVAL(*tag, pid, TLB_TAG_PID_MASK, TLB_TAG_PID_LOBIT);
+               SETVAL(*tag, pgnum, TLB_TAG_PGN_MASK, TLB_TAG_PGN_LOBIT);
+               *frmnum = value;
+               break;
+         }
+
+         // Find least recently used entry
+         if (*tag < lru_tag) {
+               lru_index = i;
+               lru_tag = *tag;
          }
       }
-   }
-   // Check all used = 1
-   for (int i = 0; i < NUM_OF_ENTRIES_TLB; i++) {
-      uint32_t *tag = (uint32_t*)(mp->storage + i*8);
 
-      int used = TLB_TAG_USED(*tag);
+      // Replace the least recently used entry
+      uint32_t *lru_tag_ptr = (uint32_t *)(mp->storage + lru_index * 8);
+      uint32_t *lru_frmnum_ptr = (uint32_t *)(mp->storage + lru_index * 8 + 4);
 
-      if (!used) {
-         pthread_mutex_unlock(&tlb_lock);
-         return 0;
-      }
-   }
-   // If all used = 1
-   for (int i = 0; i < NUM_OF_ENTRIES_TLB; i++) {
-      uint32_t *tag = (uint32_t*)(mp->storage + i*8);
-
-      CLRBIT(*tag, TLB_TAG_USED_MASK);
+      SETBIT(*lru_tag_ptr, TLB_TAG_VALID_MASK);
+      SETBIT(*lru_tag_ptr, TLB_TAG_USED_MASK);
+      SETVAL(*lru_tag_ptr, pid, TLB_TAG_PID_MASK, TLB_TAG_PID_LOBIT);
+      SETVAL(*lru_tag_ptr, pgnum, TLB_TAG_PGN_MASK, TLB_TAG_PGN_LOBIT);
+      *lru_frmnum_ptr = value;
    }
    #endif
 
@@ -280,10 +288,12 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, int value)
 int TLBMEMPHY_read(struct memphy_struct * mp, int addr, BYTE *value)
 {
    if (mp == NULL)
-     return -1;
+      return -1;
 
+   pthread_mutex_lock(&tlb_lock);
    /* TLB cached is random access by native */
    *value = mp->storage[addr];
+   pthread_mutex_unlock(&tlb_lock);
 
    return 0;
 }
@@ -298,10 +308,12 @@ int TLBMEMPHY_read(struct memphy_struct * mp, int addr, BYTE *value)
 int TLBMEMPHY_write(struct memphy_struct * mp, int addr, BYTE data)
 {
    if (mp == NULL)
-     return -1;
+      return -1;
 
+   pthread_mutex_lock(&tlb_lock);
    /* TLB cached is random access by native */
    mp->storage[addr] = data;
+   pthread_mutex_unlock(&tlb_lock);
 
    return 0;
 }
@@ -354,16 +366,25 @@ int TLBMEMPHY_dump(struct memphy_struct * mp)
  */
 int init_tlbmemphy(struct memphy_struct *mp, int max_size)
 {
-   mp->storage = (BYTE *)malloc(max_size*sizeof(BYTE));
-   mp->maxsz = max_size;
-
-   mp->rdmflg = 1;
-   NUM_OF_ENTRIES_TLB = (8 < max_size/8)? 8 : (max_size/8);
-   // init tlb cache = 0
-   for (int i = 0; i < max_size; i++) {
-      mp->storage[i] = 0;
+   mp->storage = (BYTE *)malloc(max_size * sizeof(BYTE));
+   if (mp->storage == NULL) {
+      // Handle memory allocation failure
+      return -1;
    }
-   pthread_mutex_init(&tlb_lock, NULL);
+   mp->maxsz = max_size;
+   mp->rdmflg = 1;
+   NUM_OF_ENTRIES_TLB = (8 < max_size / 8) ? 8 : (max_size / 8);
+
+   // Initialize TLB cache to 0
+   memset(mp->storage, 0, max_size * sizeof(BYTE));
+
+   // Initialize TLB lock
+   if (pthread_mutex_init(&tlb_lock, NULL) != 0) {
+      // Handle mutex initialization failure
+      free(mp->storage);
+      return -1;
+   }
+
    return 0;
 }
 
