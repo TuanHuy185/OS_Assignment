@@ -92,15 +92,23 @@ int tlbread(struct pcb_t * proc, uint32_t source,
   /* frmnum is return value of tlb_cache_read/write value*/
   
   struct vm_rg_struct *currg = get_symrg_byid(proc->mm, source);
-  if(check_if_in_freerg_list(proc,0,currg)<0){
-    printf("Read to freed region list\n");
-    return -1;
+  if (currg == NULL) {
+      printf("Invalid memory region ID\n");
+      return -1;
+  }
+  if (check_if_in_freerg_list(proc, 0, currg) < 0) {
+      printf("Read to freed region list\n");
+      return -1;
   }
   int addr = currg->rg_start + offset;
-	
+    
   int pgnum = PAGING_PGN(addr);
 
-  tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum);
+  // Assuming tlb_cache_read returns -1 on failure
+  if (tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum) == -1) {
+      printf("Failed to read TLB cache\n");
+      return -1;
+  }
 
 #ifdef IODUMP
   if (frmnum >= 0){
@@ -122,25 +130,31 @@ int tlbread(struct pcb_t * proc, uint32_t source,
   if (frmnum >= 0) {
     int phyaddr = (frmnum << PAGING_ADDR_FPN_LOBIT) + offset;
 
-    MEMPHY_read(proc->mram,phyaddr, &data);
+    MEMPHY_read(proc->mram, phyaddr, &data);
 
     destination = (uint32_t) data;
     return 0;
   }
+
   int val = __read(proc, 0, source, offset, &data);
-    
   destination = (uint32_t) data;
 
   /* TODO update TLB CACHED with frame num of recent accessing page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
-  
+
   uint32_t pte = proc->mm->pgd[pgnum];
   frmnum = PAGING_FPN(pte);
 
-  if(val==0) tlb_cache_write(proc->tlb, proc->pid, pgnum, frmnum);
-  
+  if (val == 0) {
+      if (tlb_cache_write(proc->tlb, proc->pid, pgnum, frmnum) == -1) {
+          printf("Failed to update TLB cache\n");
+          return -1;
+      }
+  }
+
   TLBMEMPHY_dump(proc->tlb);
   print_pgtbl(proc, 0, -1);
+
 
   return val; 
 } 
@@ -162,12 +176,16 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
   frmnum is return value of tlb_cache_read/write value*/
 
   struct vm_rg_struct *currg = get_symrg_byid(proc->mm, destination);
-  if(check_if_in_freerg_list(proc,0,currg)<0){
-    printf("Write to freed region list\n");
-    return -1;
+  if (currg == NULL) {
+      printf("Invalid memory region ID\n");
+      return -1;
+  }
+  if (check_if_in_freerg_list(proc, 0, currg) < 0) {
+      printf("Write to freed region list\n");
+      return -1;
   }
   int addr = currg->rg_start + offset;
-	
+
   int pgnum = PAGING_PGN(addr);
 
   tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum);
@@ -204,7 +222,12 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
   uint32_t pte = proc->mm->pgd[pgnum];
   frmnum = PAGING_FPN(pte);
 
-  if(val==0) tlb_cache_write(proc->tlb, proc->pid, pgnum, frmnum);
+  if (val == 0) {
+    if (tlb_cache_write(proc->tlb, proc->pid, pgnum, frmnum) == -1) {
+        printf("Failed to update TLB cache\n");
+        return -1;
+    }
+  }
 
   TLBMEMPHY_dump(proc->tlb);
   print_pgtbl(proc, 0, -1);
