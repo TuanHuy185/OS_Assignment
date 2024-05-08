@@ -118,7 +118,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
     sem_post(&caller->mm->memlock);
     return -1;
   }
-  printf("Increase limit finished\n");
+  printf("--->Increase limit finished\n");
   /*Successful increase limit */
   caller->mm->symrgtbl[rgid].rg_start = old_sbrk;
   caller->mm->symrgtbl[rgid].rg_end = old_sbrk + size;
@@ -185,7 +185,7 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
   /*enlist the obsoleted memory region */
   sem_post(&caller->mm->memlock);
   enlist_vm_freerg_list(caller->mm, rgnode);
-  printf("Free finished\n");
+  printf("--->Free finished\n");
   return 0;
 }
 
@@ -264,7 +264,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     sem_post(&caller->mram->memphylock);
   }
   *fpn = PAGING_FPN(pte);
-  printf("Swap finished\n");
+  printf("--->Swap finished\n");
   return 0;
 }
 
@@ -349,7 +349,7 @@ int pgread(
 
   destination = (uint32_t) data;
 #ifdef IODUMP
-  printf("read region=%d offset=%d value=%d\n", source, offset, data);
+  printf("*read region=%d offset=%d value=%d\n\n", source, offset, data);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); //print max TBL
 #endif
@@ -389,7 +389,7 @@ int pgwrite(
 		uint32_t offset)
 {
 #ifdef IODUMP
-  printf("write region=%d offset=%d value=%d\n", destination, offset, data);
+  printf("*write region=%d offset=%d value=%d\n\n", destination, offset, data);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); //print max TBL
 #endif

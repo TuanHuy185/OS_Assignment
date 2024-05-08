@@ -20,6 +20,7 @@ static int timer_stop = 0;
 
 static void * timer_routine(void * args) {
 	while (!timer_stop) {
+		if (current_time() != 0) printf("\n--------------------------------------------------------------\n\n");
 		printf("Time slot %3lu\n", current_time());
 		int fsh = 0;
 		int event = 0;
