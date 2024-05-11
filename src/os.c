@@ -314,7 +314,9 @@ int main(int argc, char * argv[]) {
 
 	/* Stop timer */
 	stop_timer();
+	#ifdef CPU_TLB
     result_TLB();
+	#endif
 	return 0;
 
 }
